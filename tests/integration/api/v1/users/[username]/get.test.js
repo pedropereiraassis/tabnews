@@ -18,7 +18,7 @@ describe("GET /api/v1/users/[username]", () => {
         body: JSON.stringify({
           username: "SameCase",
           email: "same.case@curso.dev",
-          password: "senha123",
+          password: "password123",
         }),
       });
 
@@ -36,7 +36,7 @@ describe("GET /api/v1/users/[username]", () => {
         id: response2Body.id,
         username: "SameCase",
         email: "same.case@curso.dev",
-        password: "senha123",
+        password: response2Body.password,
         created_at: response2Body.created_at,
         updated_at: response2Body.updated_at,
       });
@@ -54,7 +54,7 @@ describe("GET /api/v1/users/[username]", () => {
         body: JSON.stringify({
           username: "DifferentCase",
           email: "different.case@curso.dev",
-          password: "senha123",
+          password: "password123",
         }),
       });
 
@@ -72,7 +72,7 @@ describe("GET /api/v1/users/[username]", () => {
         id: response2Body.id,
         username: "DifferentCase",
         email: "different.case@curso.dev",
-        password: "senha123",
+        password: response2Body.password,
         created_at: response2Body.created_at,
         updated_at: response2Body.updated_at,
       });
