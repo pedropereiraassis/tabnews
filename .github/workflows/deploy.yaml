@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    # environment: ${{ github.ref == 'refs/heads/main' && 'production' ||
+    #   github.ref == 'refs/heads/sessions' && 'sessions' }}
+
+    env:
+      NAME: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/sessions' && 'sessions' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy
+        run: |
+          echo ${{ env.NAME }}
