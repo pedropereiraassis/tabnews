@@ -60,6 +60,12 @@ describe("GET /api/v1/user", () => {
         path: "/",
         httpOnly: true,
       });
+
+      const cacheControl = response.headers.get("Cache-Control");
+
+      expect(cacheControl).toBe(
+        "no-store, no-cache, max-age=0, must-revalidate",
+      );
     });
 
     test("With valid session close to expiration", async () => {
@@ -117,6 +123,12 @@ describe("GET /api/v1/user", () => {
         path: "/",
         httpOnly: true,
       });
+
+      const cacheControl = response.headers.get("Cache-Control");
+
+      expect(cacheControl).toBe(
+        "no-store, no-cache, max-age=0, must-revalidate",
+      );
     });
 
     test("With nonexistent session", async () => {

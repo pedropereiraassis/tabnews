@@ -39,7 +39,6 @@ function setSessionCookie(sessionToken, response) {
     httpOnly: true,
   });
 
-  response.setHeader("Cache-Control", "no-store");
   response.setHeader("Set-Cookie", setCookie);
 }
 
