@@ -111,7 +111,7 @@ describe("GET /api/v1/user", () => {
       expect(renewedSession.expires_at > sessionObject.expires_at).toBe(true);
       expect(renewedSession.updated_at > sessionObject.updated_at).toBe(true);
 
-      // Cookie assertions
+      // Set-Cookie assertions
       const parsedSetCookie = setCookieParser(response, {
         map: true,
       });
@@ -148,6 +148,19 @@ describe("GET /api/v1/user", () => {
         message: "User does not have an active session.",
         action: "Verify if this user is authenticated and try again.",
       });
+
+      // Set-Cookie assertions
+      const parsedSetCookie = setCookieParser(response, {
+        map: true,
+      });
+
+      expect(parsedSetCookie.session_id).toEqual({
+        name: "session_id",
+        value: "invalid",
+        maxAge: -1,
+        path: "/",
+        httpOnly: true,
+      });
     });
 
     test("With expired session", async () => {
@@ -178,6 +191,19 @@ describe("GET /api/v1/user", () => {
         name: "UnauthorizedError",
         message: "User does not have an active session.",
         action: "Verify if this user is authenticated and try again.",
+      });
+
+      // Set-Cookie assertions
+      const parsedSetCookie = setCookieParser(response, {
+        map: true,
+      });
+
+      expect(parsedSetCookie.session_id).toEqual({
+        name: "session_id",
+        value: "invalid",
+        maxAge: -1,
+        path: "/",
+        httpOnly: true,
       });
     });
   });
