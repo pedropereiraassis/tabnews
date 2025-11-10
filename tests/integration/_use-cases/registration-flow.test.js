@@ -38,4 +38,13 @@ describe("Use case: Registration Flow (all successfull)", () => {
         updated_at: createUserResponseBody.updated_at,
       });
     });
+
+    test("Receive activation email", async () => {
+      const lastEmail = await orchestrator.getLastEmail()
+
+      expect(lastEmail.sender).toBe("<contato@pedronews.com.br>")
+      expect(lastEmail.recipients[0]).toBe("<registration.flow@curso.dev>")
+      expect(lastEmail.subject).toBe("Activate your account at PedroNews!")
+      expect(lastEmail.text).toContain("RegistrationFlow")
+    })
   });
