@@ -1,3 +1,4 @@
+import activation from "models/activation.js";
 import orchestrator from "tests/orchestrator.js";
 
 beforeAll(async () => {
@@ -8,43 +9,49 @@ beforeAll(async () => {
 });
 
 describe("Use case: Registration Flow (all successfull)", () => {
-    test("Create user account", async () => {
-      const createUserResponse = await fetch(
-        "http://localhost:3000/api/v1/users",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: "RegistrationFlow",
-            email: "registration.flow@curso.dev",
-            password: "password123"
-          })
-        }
-      );
+  let createUserResponseBody;
+  test("Create user account", async () => {
+    const createUserResponse = await fetch(
+      "http://localhost:3000/api/v1/users",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "RegistrationFlow",
+          email: "registration.flow@curso.dev",
+          password: "password123",
+        }),
+      },
+    );
 
-      expect(createUserResponse.status).toBe(201);
+    expect(createUserResponse.status).toBe(201);
 
-      const createUserResponseBody = await createUserResponse.json();
+    createUserResponseBody = await createUserResponse.json();
 
-      expect(createUserResponseBody).toEqual({
-        id: createUserResponseBody.id,
-        username: "RegistrationFlow",
-        email: "registration.flow@curso.dev",
-        password: createUserResponseBody.password,
-        features: ["read:activation_token"],
-        created_at: createUserResponseBody.created_at,
-        updated_at: createUserResponseBody.updated_at,
-      });
+    expect(createUserResponseBody).toEqual({
+      id: createUserResponseBody.id,
+      username: "RegistrationFlow",
+      email: "registration.flow@curso.dev",
+      password: createUserResponseBody.password,
+      features: ["read:activation_token"],
+      created_at: createUserResponseBody.created_at,
+      updated_at: createUserResponseBody.updated_at,
     });
-
-    test("Receive activation email", async () => {
-      const lastEmail = await orchestrator.getLastEmail()
-
-      expect(lastEmail.sender).toBe("<contato@pedronews.com.br>")
-      expect(lastEmail.recipients[0]).toBe("<registration.flow@curso.dev>")
-      expect(lastEmail.subject).toBe("Activate your account at PedroNews!")
-      expect(lastEmail.text).toContain("RegistrationFlow")
-    })
   });
+
+  test("Receive activation email", async () => {
+    const lastEmail = await orchestrator.getLastEmail();
+
+    const activationToken = await activation.findOneByUserId(
+      createUserResponseBody.id,
+    );
+
+    expect(lastEmail.sender).toBe("<contato@pedronews.com.br>");
+    expect(lastEmail.recipients[0]).toBe("<registration.flow@curso.dev>");
+    expect(lastEmail.subject).toBe("Activate your account at PedroNews!");
+    expect(lastEmail.text).toContain("RegistrationFlow");
+    expect(lastEmail.text).toContain(activationToken.id);
+  });
+});
