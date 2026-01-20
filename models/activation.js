@@ -4,6 +4,38 @@ import webserver from "infra/webserver.js";
 
 const EXPIRATION_IN_MILLISECONDS = 60 * 15 * 1000; // 15 minutes
 
+async function findOneValidById(id) {
+  const activationToken = await runSelectQuery(id);
+  return activationToken;
+
+  async function runSelectQuery(tokenId) {
+    const results = await database.query({
+      text: `
+        SELECT
+          *
+        FROM
+          user_activation_tokens
+        WHERE
+          id = $1
+          AND expires_at > NOW()
+          AND used_at IS NULL
+        LIMIT
+          1
+      ;`,
+      values: [tokenId],
+    });
+
+    if (results.rowCount === 0) {
+      throw new NotFoundError({
+        message: "Activation token is invalid or expired.",
+        action: "Request a new activation token and try again.",
+      });
+    }
+
+    return results.rows[0];
+  }
+}
+
 async function findOneByUserId(userId) {
   const token = await runSelectQuery(userId);
   return token;
@@ -68,6 +100,7 @@ const activation = {
   create,
   sendEmailToUser,
   findOneByUserId,
+  findOneValidById,
 };
 
 export default activation;
