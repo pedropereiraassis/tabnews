@@ -5,8 +5,10 @@ import database from "infra/database.js";
 import migrator from "models/migrator.js";
 import user from "models/user.js";
 import session from "models/session.js";
+import activation from "models/activation.js";
+import webserver from "infra/webserver.js";
 
-const EMAIL_HTTP_URL = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
+const emailHttpUrl = `http://${process.env.EMAIL_HTTP_HOST}:${process.env.EMAIL_HTTP_PORT}`;
 
 async function waitForAllServices() {
   await waitForWebServer();
@@ -19,7 +21,7 @@ async function waitForAllServices() {
     });
 
     async function fetchStatusPage() {
-      const response = await fetch("http://localhost:3000/api/v1/status");
+      const response = await fetch(`${webserver.origin}/api/v1/status`);
 
       if (response.status !== 200) {
         throw Error();
@@ -34,7 +36,7 @@ async function waitForAllServices() {
     });
 
     async function fetchEmailPage() {
-      const response = await fetch(EMAIL_HTTP_URL);
+      const response = await fetch(emailHttpUrl);
 
       if (response.status !== 200) {
         throw Error();
@@ -44,7 +46,7 @@ async function waitForAllServices() {
 }
 
 async function clearDatabase() {
-  await database.query("DROP SCHEMA PUBLIC CASCADE; CREATE SCHEMA PUBLIC;");
+  await database.query("drop schema public cascade; create schema public;");
 }
 
 async function runPendingMigrations() {
@@ -54,34 +56,52 @@ async function runPendingMigrations() {
 async function createUser(userObject) {
   return await user.create({
     username:
-      userObject.username || faker.internet.username().replace(/[_.-]/g, ""),
-    email: userObject.email || faker.internet.email(),
-    password: userObject.password || "password123",
+      userObject?.username || faker.internet.username().replace(/[_.-]/g, ""),
+    email: userObject?.email || faker.internet.email(),
+    password: userObject?.password || "validpassword",
   });
 }
 
-async function createSession(userId) {
-  return await session.create(userId);
+async function createSession(userObject) {
+  return await session.create(userObject.id);
 }
 
 async function deleteAllEmails() {
-  await fetch(`${EMAIL_HTTP_URL}/messages`, {
+  await fetch(`${emailHttpUrl}/messages`, {
     method: "DELETE",
   });
 }
 
 async function getLastEmail() {
-  const emailListResponse = await fetch(`${EMAIL_HTTP_URL}/messages`);
+  const emailListResponse = await fetch(`${emailHttpUrl}/messages`);
   const emailListBody = await emailListResponse.json();
-  const lastEmail = emailListBody.pop();
+  const lastEmailItem = emailListBody.pop();
 
-  const lastEmailTextResponse = await fetch(
-    `${EMAIL_HTTP_URL}/messages/${lastEmail.id}.plain`,
+  if (!lastEmailItem) {
+    return null;
+  }
+
+  const emailTextResponse = await fetch(
+    `${emailHttpUrl}/messages/${lastEmailItem.id}.plain`,
   );
-  const lastEmailText = await lastEmailTextResponse.text();
-  lastEmail.text = lastEmailText;
+  const emailTextBody = await emailTextResponse.text();
 
-  return lastEmail;
+  lastEmailItem.text = emailTextBody;
+  return lastEmailItem;
+}
+
+function extractUUID(text) {
+  const match = text.match(/[0-9a-fA-F-]{36}/);
+  return match ? match[0] : null;
+}
+
+async function activateUser(inactiveUser) {
+  return await activation.activateUserByUserId(inactiveUser.id);
+}
+
+async function addFeaturesToUser(userObject, features) {
+  const updatedUser = await user.addFeatures(userObject.id, features);
+  return updatedUser;
 }
 
 const orchestrator = {
@@ -92,6 +112,9 @@ const orchestrator = {
   createSession,
   deleteAllEmails,
   getLastEmail,
+  extractUUID,
+  activateUser,
+  addFeaturesToUser,
 };
 
 export default orchestrator;

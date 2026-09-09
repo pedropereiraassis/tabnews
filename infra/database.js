@@ -1,5 +1,5 @@
 import { Client } from "pg";
-import { ServiceError } from "infra/errors.js";
+import { ServiceError } from "./errors.js";
 
 async function query(queryObject) {
   let client;
@@ -9,7 +9,7 @@ async function query(queryObject) {
     return result;
   } catch (error) {
     const serviceErrorObject = new ServiceError({
-      message: "Error on the database connection or on the query.",
+      message: "Erro na conexão com Banco ou na Query.",
       cause: error,
     });
     throw serviceErrorObject;
@@ -25,7 +25,7 @@ async function getNewClient() {
     user: process.env.POSTGRES_USER,
     database: process.env.POSTGRES_DB,
     password: process.env.POSTGRES_PASSWORD,
-    ssl: process.env.NODE_ENV === "production" ? true : false,
+    ssl: getSSLValues(),
   });
 
   await client.connect();
@@ -38,3 +38,13 @@ const database = {
 };
 
 export default database;
+
+function getSSLValues() {
+  if (process.env.POSTGRES_CA) {
+    return {
+      ca: process.env.POSTGRES_CA,
+    };
+  }
+
+  return process.env.NODE_ENV === "production" ? true : false;
+}
