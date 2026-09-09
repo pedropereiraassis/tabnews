@@ -4,6 +4,7 @@ import { ValidationError, NotFoundError } from "infra/errors.js";
 
 async function findOneById(id) {
   const userFound = await runSelectQuery(id);
+
   return userFound;
 
   async function runSelectQuery(id) {
@@ -23,8 +24,8 @@ async function findOneById(id) {
 
     if (results.rowCount === 0) {
       throw new NotFoundError({
-        message: "User not found.",
-        action: "Check the id and try again.",
+        message: "O id informado não foi encontrado no sistema.",
+        action: "Verifique se o id está digitado corretamente.",
       });
     }
 
@@ -34,6 +35,7 @@ async function findOneById(id) {
 
 async function findOneByUsername(username) {
   const userFound = await runSelectQuery(username);
+
   return userFound;
 
   async function runSelectQuery(username) {
@@ -53,8 +55,8 @@ async function findOneByUsername(username) {
 
     if (results.rowCount === 0) {
       throw new NotFoundError({
-        message: "Username not found.",
-        action: "Check the username and try again.",
+        message: "O username informado não foi encontrado no sistema.",
+        action: "Verifique se o username está digitado corretamente.",
       });
     }
 
@@ -64,6 +66,7 @@ async function findOneByUsername(username) {
 
 async function findOneByEmail(email) {
   const userFound = await runSelectQuery(email);
+
   return userFound;
 
   async function runSelectQuery(email) {
@@ -83,8 +86,8 @@ async function findOneByEmail(email) {
 
     if (results.rowCount === 0) {
       throw new NotFoundError({
-        message: "Email not found.",
-        action: "Check the email and try again.",
+        message: "O email informado não foi encontrado no sistema.",
+        action: "Verifique se o email está digitado corretamente.",
       });
     }
 
@@ -96,6 +99,7 @@ async function create(userInputValues) {
   await validateUniqueUsername(userInputValues.username);
   await validateUniqueEmail(userInputValues.email);
   await hashPasswordInObject(userInputValues);
+  injectDefaultFeaturesInObject(userInputValues);
 
   const newUser = await runInsertQuery(userInputValues);
   return newUser;
@@ -104,9 +108,9 @@ async function create(userInputValues) {
     const results = await database.query({
       text: `
         INSERT INTO
-          users (username, email, password)
+          users (username, email, password, features)
         VALUES
-          ($1, $2, $3)
+          ($1, $2, $3, $4)
         RETURNING
           *
         ;`,
@@ -114,10 +118,14 @@ async function create(userInputValues) {
         userInputValues.username,
         userInputValues.email,
         userInputValues.password,
+        userInputValues.features,
       ],
     });
-
     return results.rows[0];
+  }
+
+  function injectDefaultFeaturesInObject(userInputValues) {
+    userInputValues.features = ["read:activation_token"];
   }
 }
 
@@ -136,13 +144,9 @@ async function update(username, userInputValues) {
     await hashPasswordInObject(userInputValues);
   }
 
-  const userWithNewValues = {
-    ...currentUser,
-    ...userInputValues,
-  };
+  const userWithNewValues = { ...currentUser, ...userInputValues };
 
   const updatedUser = await runUpdateQuery(userWithNewValues);
-
   return updatedUser;
 
   async function runUpdateQuery(userWithNewValues) {
@@ -175,20 +179,20 @@ async function update(username, userInputValues) {
 async function validateUniqueUsername(username) {
   const results = await database.query({
     text: `
-        SELECT
-          username
-        FROM
-          users
-        WHERE
-          LOWER(username) = LOWER($1)
-        ;`,
+      SELECT
+        username
+      FROM
+        users
+      WHERE
+        LOWER(username) = LOWER($1)
+      ;`,
     values: [username],
   });
 
   if (results.rowCount > 0) {
     throw new ValidationError({
-      message: "Username already in use.",
-      action: "Use another username for this operation.",
+      message: "O username informado já está sendo utilizado.",
+      action: "Utilize outro username para realizar esta operação.",
     });
   }
 }
@@ -196,20 +200,20 @@ async function validateUniqueUsername(username) {
 async function validateUniqueEmail(email) {
   const results = await database.query({
     text: `
-        SELECT
-          email
-        FROM
-          users
-        WHERE
-          LOWER(email) = LOWER($1)
-        ;`,
+      SELECT
+        email
+      FROM
+        users
+      WHERE
+        LOWER(email) = LOWER($1)
+      ;`,
     values: [email],
   });
 
   if (results.rowCount > 0) {
     throw new ValidationError({
-      message: "Email already in use.",
-      action: "Use another email for this operation.",
+      message: "O email informado já está sendo utilizado.",
+      action: "Utilize outro email para realizar esta operação.",
     });
   }
 }
@@ -219,12 +223,62 @@ async function hashPasswordInObject(userInputValues) {
   userInputValues.password = hashedPassword;
 }
 
+async function setFeatures(userId, features) {
+  const updatedUser = await runUpdateQuery(userId, features);
+  return updatedUser;
+
+  async function runUpdateQuery(userId, features) {
+    const results = await database.query({
+      text: `
+       UPDATE
+         users
+       SET
+         features = $2,
+         updated_at = timezone('utc', now())
+       WHERE
+         id = $1
+       RETURNING
+         *
+       ;`,
+      values: [userId, features],
+    });
+
+    return results.rows[0];
+  }
+}
+
+async function addFeatures(userId, features) {
+  const updatedUser = await runUpdateQuery(userId, features);
+  return updatedUser;
+
+  async function runUpdateQuery(userId, features) {
+    const results = await database.query({
+      text: `
+       UPDATE
+         users
+       SET
+         features = array_cat(features, $2),
+         updated_at = timezone('utc', now())
+       WHERE
+         id = $1
+       RETURNING
+         *
+       ;`,
+      values: [userId, features],
+    });
+
+    return results.rows[0];
+  }
+}
+
 const user = {
   create,
   findOneById,
   findOneByUsername,
   findOneByEmail,
   update,
+  setFeatures,
+  addFeatures,
 };
 
 export default user;
